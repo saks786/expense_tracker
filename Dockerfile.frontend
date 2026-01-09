@@ -1,0 +1,18 @@
+# Use slim (Debian-based) Node image instead of Alpine for stability
+FROM node:20-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files and install
+COPY frontend/package*.json ./
+RUN npm install
+
+# Copy frontend source code
+COPY frontend/ .
+
+# Expose Vite dev server port
+EXPOSE 5413   
+
+# Default command
+CMD ["npm", "run", "dev"]
