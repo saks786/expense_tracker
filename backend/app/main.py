@@ -14,6 +14,7 @@ app = FastAPI(title="Expense Tracker API", version="2.0.0")
 
 # CORS - keep narrow in production; allow_origins=["*"] only for temporary testing.
 frontend_origins = [
+    "http://140.245.14.94:5413",  
     "https://expense-tracker-one-eta-34.vercel.app",
     "https://your-frontend.vercel.app",   # <-- replace with your actual Vercel domain
     "http://localhost:5173",
