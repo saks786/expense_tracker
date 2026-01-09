@@ -42,7 +42,7 @@ services:
     ports:
       - "5413:5413"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://140.245.14.94:8000
       - NODE_ENV=development
     volumes:
       - ./frontend:/app:delegated
