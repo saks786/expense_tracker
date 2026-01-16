@@ -1,35 +1,66 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date as date_type, datetime
+from datetime import date, datetime
 from typing import Optional, List
+
+# ================= USERS =================
+
+class UserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+# ================= EXPENSES =================
 
 class ExpenseCreate(BaseModel):
     category: str
     amount: float
     description: Optional[str] = ""
-    date: Optional[date_type] = None
+    date: Optional[date] = None
+
 
 class ExpenseUpdate(BaseModel):
     category: Optional[str] = None
     amount: Optional[float] = None
     description: Optional[str] = None
-    date: Optional[date_type] = None
+    date: Optional[date] = None
+
 
 class ExpenseResponse(BaseModel):
     id: int
     category: str
     amount: float
     description: str
-    date: date_type
+    date: date
     user_id: int
 
     class Config:
         from_attributes = True
+
+
+# ================= BUDGETS =================
 
 class BudgetCreate(BaseModel):
     category: str
     limit_amount: float
     month: int
     year: int
+
 
 class BudgetResponse(BaseModel):
     id: int
@@ -42,17 +73,22 @@ class BudgetResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ================= DEBTS =================
+
 class DebtCreate(BaseModel):
     name: str
     principal_amount: float
     interest_rate: float
     emi_amount: float
-    emi_date: int  # Day of month (1-31)
-    start_date: date_type
+    emi_date: int
+    start_date: date
+
 
 class DebtUpdate(BaseModel):
     remaining_amount: Optional[float] = None
     status: Optional[str] = None
+
 
 class DebtResponse(BaseModel):
     id: int
@@ -61,7 +97,7 @@ class DebtResponse(BaseModel):
     interest_rate: float
     emi_amount: float
     emi_date: int
-    start_date: date_type
+    start_date: date
     remaining_amount: float
     status: str
     user_id: int
@@ -69,8 +105,12 @@ class DebtResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ================= FRIENDS =================
+
 class FriendRequest(BaseModel):
     friend_username: str
+
 
 class FriendshipResponse(BaseModel):
     id: int
@@ -83,23 +123,45 @@ class FriendshipResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ================= SPLIT EXPENSES =================
+
 class SplitExpenseCreate(BaseModel):
     description: str
     total_amount: float
     category: str
-    date: date_type
-    participant_ids: List[int]  # List of user IDs to split with
+    date: date
+    participant_ids: List[int]
+
 
 class SplitExpenseResponse(BaseModel):
     id: int
     description: str
     total_amount: float
     category: str
-    date: date_type
+    date: date
     created_by: int
     created_at: datetime
-    participants: List[int]  # User IDs
-    split_amount: Optional[float] = None  # Amount per person
+    participants: List[int]
+    split_amount: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ================= SETTLEMENTS (PHASE 3) =================
+
+class SettlementCreate(BaseModel):
+    to_username: str
+    amount: float
+
+
+class SettlementResponse(BaseModel):
+    id: int
+    from_user_id: int
+    to_user_id: int
+    amount: float
+    created_at: datetime
 
     class Config:
         from_attributes = True

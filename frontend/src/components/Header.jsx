@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Header({ onLogout }) {
+export default function Header({ onLogout, user }) {
   return (
     <header className="header">
       <div className="header-content" style={styles.headerContent}>
@@ -11,16 +11,24 @@ export default function Header({ onLogout }) {
           </p>
         </div>
 
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            aria-label="Logout from your account"
-            className="btn btn-logout"
-            style={styles.logoutButton}
-          >
-            Logout
-          </button>
-        )}
+        <div style={styles.rightBlock}>
+          {user && (
+            <div style={styles.userBadge}>
+              👋 Hi, <strong>{user.username}</strong>
+            </div>
+          )}
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              aria-label="Logout from your account"
+              className="btn btn-logout"
+              style={styles.logoutButton}
+            >
+              Logout
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -40,6 +48,11 @@ const styles = {
     flexDirection: "column",
     gap: "6px",
   },
+  rightBlock: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+  },
   title: {
     fontSize: "2.4rem",
     fontWeight: 700,
@@ -50,11 +63,17 @@ const styles = {
     opacity: 0.92,
     margin: 0,
   },
+  userBadge: {
+    fontSize: "1rem",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  },
   logoutButton: {
     padding: "10px 20px",
     borderRadius: "10px",
     background: "rgba(255, 255, 255, 0.2)",
     color: "white",
     border: "2px solid transparent",
+    cursor: "pointer",
   },
 };
