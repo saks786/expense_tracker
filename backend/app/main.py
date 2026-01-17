@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
 from .routes import router
+from .payments import router as payment_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("expense-backend")
@@ -14,9 +15,6 @@ app = FastAPI(title="Expense Tracker API", version="2.0.0")
 
 # CORS - keep narrow in production; allow_origins=["*"] only for temporary testing.
 frontend_origins = [
-    "http://140.245.14.94:5413",  
-    "https://expense-tracker-one-eta-34.vercel.app",
-    "https://your-frontend.vercel.app",   # <-- replace with your actual Vercel domain
     "http://localhost:5173",
     "http://localhost:5413",
     "http://localhost:5174",
@@ -50,5 +48,6 @@ async def root():
 async def ping():
     return {"pong": True}
 
-# include API router under /api
+# include API routers
 app.include_router(router)
+app.include_router(payment_router)

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
 import {
   getExpenses,
   addExpense,
@@ -20,6 +22,10 @@ import DebtList from "./components/DebtList";
 import FriendList from "./components/FriendList";
 import SplitExpenseForm from "./components/SplitExpenseForm";
 import SplitExpenseList from "./components/SplitExpenseList";
+import PaymentModal from "./components/PaymentModal";
+import TransactionHistory from "./components/TransactionHistory";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 export default function App() {
   const [expenses, setExpenses] = useState([]);
@@ -31,6 +37,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("expenses");
   const [refreshDebts, setRefreshDebts] = useState(0);
   const [refreshSplit, setRefreshSplit] = useState(0);
+  const [paymentModal, setPaymentModal] = useState({ open: false, debt: null, splitExpense: null, amount: 0, paymentType: null });
 
   useEffect(() => {
     async function init() {
@@ -79,6 +86,32 @@ export default function App() {
     setExpenses([]);
   }
 
+  const handleDebtPaymentClick = (debt, amount) => {
+    setPaymentModal({
+      open: true,
+      debt,
+      splitExpense: null,
+      amount,
+      paymentType: "debt_payment",
+    });
+  };
+
+  const handleSplitPaymentClick = (splitExpense, amount, type) => {
+    setPaymentModal({
+      open: true,
+      debt: null,
+      splitExpense,
+      amount,
+      paymentType: "split_expense_payment",
+    });
+  };
+
+  const handlePaymentSuccess = async () => {
+    setPaymentModal({ open: false, debt: null, splitExpense: null, amount: 0, paymentType: null });
+    setRefreshDebts((p) => p + 1);
+    setRefreshSplit((p) => p + 1);
+  };
+
   if (!authenticated) {
     return showRegister ? (
       <Register
@@ -106,7 +139,6 @@ export default function App() {
     <div className="container">
       <Header onLogout={handleLogout} user={currentUser} />
 
-      {/* ✅ FIXED: proper classes restored */}
       <div className="main-tabs">
         <button
           className={`main-tab ${activeTab === "expenses" ? "active" : ""}`}
@@ -134,6 +166,13 @@ export default function App() {
           onClick={() => setActiveTab("split")}
         >
           🤝 Split
+        </button>
+
+        <button
+          className={`main-tab ${activeTab === "transactions" ? "active" : ""}`}
+          onClick={() => setActiveTab("transactions")}
+        >
+          📊 Transactions
         </button>
       </div>
 
@@ -174,7 +213,7 @@ export default function App() {
         {activeTab === "debts" && (
           <>
             <DebtForm onDebtAdded={() => setRefreshDebts((p) => p + 1)} />
-            <DebtList refresh={refreshDebts} />
+            <DebtList refresh={refreshDebts} onPaymentClick={handleDebtPaymentClick} />
           </>
         )}
 
@@ -187,10 +226,28 @@ export default function App() {
             <SplitExpenseForm
               onExpenseAdded={() => setRefreshSplit((p) => p + 1)}
             />
-            <SplitExpenseList refresh={refreshSplit} />
+            <SplitExpenseList refresh={refreshSplit} onPaymentClick={handleSplitPaymentClick} />
           </>
         )}
+
+        {activeTab === "transactions" && (
+          <TransactionHistory />
+        )}
       </div>
+
+      {paymentModal.open && (
+        <Elements stripe={stripePromise}>
+          <PaymentModal
+            open={paymentModal.open}
+            debt={paymentModal.debt}
+            splitExpense={paymentModal.splitExpense}
+            amount={paymentModal.amount}
+            paymentType={paymentModal.paymentType}
+            onClose={() => setPaymentModal({ open: false, debt: null, splitExpense: null, amount: 0, paymentType: null })}
+            onSuccess={handlePaymentSuccess}
+          />
+        </Elements>
+      )}
     </div>
   );
 }
