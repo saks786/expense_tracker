@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, timedelta
 from typing import List
+from .email_service import send_email
+
 
 from .database import SessionLocal
 from .models import (
@@ -302,3 +304,18 @@ def create_settlement(
     db.commit()
     db.refresh(new_settlement)
     return new_settlement
+
+# ================= EMAIL TEST =================
+
+@router.get("/test-email")
+def test_email():
+    success = send_email(
+        to_email="sohambose601@gmail.com",  # put your real email
+        subject="SendGrid Test Email ✅",
+        html_content="""
+        <h2>Hello Saksham 👋</h2>
+        <p>Your SendGrid email integration is working.</p>
+        """
+    )
+    return {"email_sent": success}
+

@@ -1,4 +1,7 @@
 # backend/app/main.py
+from dotenv import load_dotenv
+load_dotenv()  # 👈 THIS loads .env into os.environ
+
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
