@@ -83,6 +83,8 @@ class DebtCreate(BaseModel):
     emi_amount: float
     emi_date: int
     start_date: date
+    remaining_amount: float
+    status: Optional[str] = "active"
 
 
 class DebtUpdate(BaseModel):
@@ -118,7 +120,6 @@ class FriendshipResponse(BaseModel):
     friend_id: int
     status: str
     created_at: datetime
-    friend_username: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -130,8 +131,17 @@ class SplitExpenseCreate(BaseModel):
     description: str
     total_amount: float
     category: str
-    date: date
-    participant_ids: List[int]
+    date: Optional[date] = None
+    participant_usernames: List[str]
+
+
+class ParticipantInfo(BaseModel):
+    id: int
+    username: str
+    email: str
+
+    class Config:
+        from_attributes = True
 
 
 class SplitExpenseResponse(BaseModel):
@@ -142,8 +152,7 @@ class SplitExpenseResponse(BaseModel):
     date: date
     created_by: int
     created_at: datetime
-    participants: List[int]
-    split_amount: Optional[float] = None
+    participants: List[ParticipantInfo]
 
     class Config:
         from_attributes = True

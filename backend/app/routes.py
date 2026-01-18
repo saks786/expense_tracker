@@ -223,6 +223,340 @@ def monthly_analytics(
     )
     return [{"month": m.strftime("%Y-%m"), "total": float(t)} for m, t in data]
 
+# ================= BUDGET ROUTES =================
+
+@router.get("/budgets", response_model=List[BudgetResponse])
+def list_budgets(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return db.query(Budget).filter(Budget.user_id == current_user.id).all()
+
+
+@router.post("/budgets", response_model=BudgetResponse)
+def create_budget(
+    budget: BudgetCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_budget = Budget(
+        category=budget.category,
+        limit_amount=budget.limit_amount,
+        month=budget.month,
+        year=budget.year,
+        user_id=current_user.id,
+    )
+    db.add(new_budget)
+    db.commit()
+    db.refresh(new_budget)
+    return new_budget
+
+
+@router.delete("/budgets/{budget_id}")
+def delete_budget(
+    budget_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    budget = db.query(Budget).filter(
+        Budget.id == budget_id,
+        Budget.user_id == current_user.id,
+    ).first()
+
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+
+    db.delete(budget)
+    db.commit()
+    return {"message": "Budget deleted successfully"}
+
+# ================= DEBT ROUTES =================
+
+@router.get("/debts", response_model=List[DebtResponse])
+def list_debts(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return db.query(Debt).filter(Debt.user_id == current_user.id).all()
+
+
+@router.post("/debts", response_model=DebtResponse)
+def create_debt(
+    debt: DebtCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_debt = Debt(
+        name=debt.name,
+        principal_amount=debt.principal_amount,
+        interest_rate=debt.interest_rate,
+        emi_amount=debt.emi_amount,
+        emi_date=debt.emi_date,
+        start_date=debt.start_date,
+        remaining_amount=debt.remaining_amount,
+        status=debt.status or "active",
+        user_id=current_user.id,
+    )
+    db.add(new_debt)
+    db.commit()
+    db.refresh(new_debt)
+    return new_debt
+
+
+@router.put("/debts/{debt_id}", response_model=DebtResponse)
+def update_debt(
+    debt_id: int,
+    debt: DebtUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_debt = db.query(Debt).filter(
+        Debt.id == debt_id,
+        Debt.user_id == current_user.id,
+    ).first()
+
+    if not db_debt:
+        raise HTTPException(status_code=404, detail="Debt not found")
+
+    for field, value in debt.dict(exclude_unset=True).items():
+        setattr(db_debt, field, value)
+
+    db.commit()
+    db.refresh(db_debt)
+    return db_debt
+
+
+@router.delete("/debts/{debt_id}")
+def delete_debt(
+    debt_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    debt = db.query(Debt).filter(
+        Debt.id == debt_id,
+        Debt.user_id == current_user.id,
+    ).first()
+
+    if not debt:
+        raise HTTPException(status_code=404, detail="Debt not found")
+
+    db.delete(debt)
+    db.commit()
+    return {"message": "Debt deleted successfully"}
+
+# ================= FRIENDSHIP ROUTES =================
+
+@router.get("/friends", response_model=List[FriendshipResponse])
+def list_friends(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Get accepted friendships where current user is either user or friend
+    friendships = db.query(Friendship).filter(
+        ((Friendship.user_id == current_user.id) | (Friendship.friend_id == current_user.id)),
+        Friendship.status == "accepted"
+    ).all()
+    return friendships
+
+
+@router.get("/friends/requests", response_model=List[FriendshipResponse])
+def list_friend_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Get pending friend requests sent to the current user
+    requests = db.query(Friendship).filter(
+        Friendship.friend_id == current_user.id,
+        Friendship.status == "pending"
+    ).all()
+    return requests
+
+
+@router.post("/friends/request", response_model=FriendshipResponse)
+def send_friend_request(
+    request: FriendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        # Log the incoming request
+        import logging
+        logger = logging.getLogger("expense-backend")
+        logger.info(f"Friend request from {current_user.username} to '{request.friend_username}'")
+        
+        # Clean the username input
+        friend_username = request.friend_username.strip()
+        
+        if not friend_username:
+            raise HTTPException(status_code=400, detail="Username cannot be empty")
+        
+        # Find the friend by username (case-insensitive search)
+        friend = db.query(User).filter(
+            func.lower(User.username) == friend_username.lower()
+        ).first()
+        
+        if not friend:
+            # List available users for debugging
+            all_users = db.query(User.username).filter(User.id != current_user.id).all()
+            available = [u.username for u in all_users]
+            logger.info(f"Available users: {available}")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"User '{friend_username}' not found. Available users: {', '.join(available)}"
+            )
+        
+        if friend.id == current_user.id:
+            raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
+        
+        # Check if friendship already exists
+        existing = db.query(Friendship).filter(
+            ((Friendship.user_id == current_user.id) & (Friendship.friend_id == friend.id)) |
+            ((Friendship.user_id == friend.id) & (Friendship.friend_id == current_user.id))
+        ).first()
+        
+        if existing:
+            logger.info(f"Existing friendship found: status={existing.status}, user_id={existing.user_id}, friend_id={existing.friend_id}")
+            if existing.status == "accepted":
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"You are already friends with {friend.username}"
+                )
+            elif existing.status == "pending":
+                if existing.user_id == current_user.id:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Friend request to {friend.username} is already pending"
+                    )
+                else:
+                    # Auto-accept if they sent us a request and we're trying to send one back
+                    logger.info(f"Auto-accepting friend request from {friend.username}")
+                    existing.status = "accepted"
+                    db.commit()
+                    db.refresh(existing)
+                    return existing
+        
+        new_friendship = Friendship(
+            user_id=current_user.id,
+            friend_id=friend.id,
+            status="pending"
+        )
+        db.add(new_friendship)
+        db.commit()
+        db.refresh(new_friendship)
+        logger.info(f"Friend request created successfully: id={new_friendship.id}")
+        return new_friendship
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error in send_friend_request: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.put("/friends/{friendship_id}/accept", response_model=FriendshipResponse)
+def accept_friend_request(
+    friendship_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    friendship = db.query(Friendship).filter(
+        Friendship.id == friendship_id,
+        Friendship.friend_id == current_user.id,
+        Friendship.status == "pending"
+    ).first()
+    
+    if not friendship:
+        raise HTTPException(status_code=404, detail="Friend request not found")
+    
+    friendship.status = "accepted"
+    db.commit()
+    db.refresh(friendship)
+    return friendship
+
+
+@router.delete("/friends/{friendship_id}")
+def delete_friend(
+    friendship_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    friendship = db.query(Friendship).filter(
+        Friendship.id == friendship_id,
+        ((Friendship.user_id == current_user.id) | (Friendship.friend_id == current_user.id))
+    ).first()
+    
+    if not friendship:
+        raise HTTPException(status_code=404, detail="Friendship not found")
+    
+    db.delete(friendship)
+    db.commit()
+    return {"message": "Friendship deleted successfully"}
+
+# ================= SPLIT EXPENSE ROUTES =================
+
+@router.get("/split-expenses", response_model=List[SplitExpenseResponse])
+def list_split_expenses(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Get split expenses where user is creator or participant
+    split_expenses = db.query(SplitExpense).filter(
+        (SplitExpense.created_by == current_user.id) |
+        (SplitExpense.participants.any(id=current_user.id))
+    ).all()
+    return split_expenses
+
+
+@router.post("/split-expenses", response_model=SplitExpenseResponse)
+def create_split_expense(
+    expense: SplitExpenseCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Get participant users
+    participants = []
+    for username in expense.participant_usernames:
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User {username} not found")
+        participants.append(user)
+    
+    # Add current user to participants if not already included
+    if current_user not in participants:
+        participants.append(current_user)
+    
+    new_split_expense = SplitExpense(
+        description=expense.description,
+        total_amount=expense.total_amount,
+        category=expense.category,
+        date=expense.date or date.today(),
+        created_by=current_user.id,
+        participants=participants
+    )
+    db.add(new_split_expense)
+    db.commit()
+    db.refresh(new_split_expense)
+    return new_split_expense
+
+
+@router.delete("/split-expenses/{expense_id}")
+def delete_split_expense(
+    expense_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    split_expense = db.query(SplitExpense).filter(
+        SplitExpense.id == expense_id,
+        SplitExpense.created_by == current_user.id
+    ).first()
+    
+    if not split_expense:
+        raise HTTPException(status_code=404, detail="Split expense not found or you're not the creator")
+    
+    db.delete(split_expense)
+    db.commit()
+    return {"message": "Split expense deleted successfully"}
+
 # ================= SPLIT BALANCES (PHASE 3) =================
 
 @router.get("/balances")

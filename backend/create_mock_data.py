@@ -1,74 +1,32 @@
- # backend/app/main.py
-from dotenv import load_dotenv
-load_dotenv()  # 👈 THIS loads .env into os.environ
+"""
+Script to create mock data for testing the Expense Tracker application.
+Run this script from the backend directory: python create_mock_data.py
+"""
 
-import logging
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 from datetime import date, timedelta
+from app.database import SessionLocal, engine
+from app import models
+from app.auth import get_password_hash
 
-from . import models
-from .database import engine, get_db
-from .routes import router
-from .auth import get_password_hash
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("expense-backend")
-
-app = FastAPI(title="Expense Tracker API", version="2.0.0")
-
-# CORS - keep narrow in production; allow_origins=["*"] only for temporary testing.
-frontend_origins = [
-    "http://140.245.14.94:5413",  
-    "https://expense-tracker-one-eta-34.vercel.app",
-    "https://your-frontend.vercel.app",   # <-- replace with your actual Vercel domain
-    "http://localhost:5173",
-    "http://localhost:5413",
-    "http://localhost:5174",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=frontend_origins,  # don't duplicate keys
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# create tables at startup — log errors but don't crash the entire process
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Startup: attempting to create/verify DB tables...")
-    try:
-        models.Base.metadata.create_all(bind=engine)
-        logger.info("DB tables created/verified.")
-    except Exception as e:
-        # Log exception (important); don't re-raise to keep process alive
-        logger.exception("Failed to create DB tables on startup — check DATABASE_URL and DB connectivity: %s", e)
-
-# small root + ping endpoints for health checks
-@app.get("/", include_in_schema=False)
-async def root():
-    return {"message": "Expense Tracker backend is running"}
-
-@app.get("/ping")
-async def ping():
-    return {"pong": True}
-
-# Mock Data Creation Endpoint
-@app.post("/api/create-mock-data", tags=["Development"])
-async def create_mock_data(db: Session = Depends(get_db)):
-    """
-    Creates mock data for testing. Only use in development!
-    """
+def create_mock_data():
+    """Creates mock data for testing."""
+    # Create database tables
+    models.Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    
     try:
         # Check if mock data already exists
         existing_user = db.query(models.User).filter(models.User.username == "testuser1").first()
         if existing_user:
-            return {"message": "Mock data already exists", "note": "Delete database to recreate"}
+            print("✓ Mock data already exists!")
+            print("  Delete the database file (dev.db) to recreate mock data.")
+            return
+        
+        print("Creating mock data...")
         
         # Create test users
+        print("\n1. Creating users...")
         users = []
         for i in range(1, 4):
             user = models.User(
@@ -83,8 +41,10 @@ async def create_mock_data(db: Session = Depends(get_db)):
         db.commit()
         for user in users:
             db.refresh(user)
+        print(f"   ✓ Created {len(users)} users")
         
         # Create expenses for user 1
+        print("\n2. Creating expenses...")
         categories = ["Food", "Transport", "Entertainment", "Shopping", "Bills", "Healthcare"]
         today = date.today()
         
@@ -98,7 +58,11 @@ async def create_mock_data(db: Session = Depends(get_db)):
             )
             db.add(expense)
         
+        db.commit()
+        print("   ✓ Created 20 expenses")
+        
         # Create budgets for user 1
+        print("\n3. Creating budgets...")
         current_month = today.month
         current_year = today.year
         
@@ -112,7 +76,11 @@ async def create_mock_data(db: Session = Depends(get_db)):
             )
             db.add(budget)
         
+        db.commit()
+        print("   ✓ Created 4 budgets")
+        
         # Create debts for user 1
+        print("\n4. Creating debts...")
         debts_data = [
             {"name": "Car Loan", "principal": 15000.0, "interest": 5.5, "emi": 300.0, "emi_date": 5},
             {"name": "Personal Loan", "principal": 5000.0, "interest": 8.0, "emi": 150.0, "emi_date": 15},
@@ -132,7 +100,11 @@ async def create_mock_data(db: Session = Depends(get_db)):
             )
             db.add(debt)
         
+        db.commit()
+        print("   ✓ Created 2 debts")
+        
         # Create friendships
+        print("\n5. Creating friendships...")
         friendship1 = models.Friendship(
             user_id=users[0].id,
             friend_id=users[1].id,
@@ -145,8 +117,11 @@ async def create_mock_data(db: Session = Depends(get_db)):
         )
         db.add(friendship1)
         db.add(friendship2)
+        db.commit()
+        print("   ✓ Created 2 friendships")
         
         # Create split expenses
+        print("\n6. Creating split expenses...")
         split_expense = models.SplitExpense(
             description="Dinner at restaurant",
             total_amount=150.0,
@@ -166,36 +141,46 @@ async def create_mock_data(db: Session = Depends(get_db)):
             participants=[users[0], users[1], users[2]]
         )
         db.add(split_expense2)
+        db.commit()
+        print("   ✓ Created 2 split expenses")
         
         # Create a settlement
+        print("\n7. Creating settlements...")
         settlement = models.Settlement(
             from_user_id=users[1].id,
             to_user_id=users[0].id,
             amount=75.0
         )
         db.add(settlement)
-        
         db.commit()
+        print("   ✓ Created 1 settlement")
         
-        return {
-            "message": "Mock data created successfully!",
-            "users": [
-                {"username": u.username, "email": u.email, "password": "password123"} 
-                for u in users
-            ],
-            "counts": {
-                "expenses": 20,
-                "budgets": 4,
-                "debts": 2,
-                "friendships": 2,
-                "split_expenses": 2,
-                "settlements": 1
-            }
-        }
+        print("\n" + "="*60)
+        print("✓ Mock data created successfully!")
+        print("="*60)
+        print("\nTest User Credentials:")
+        for i, user in enumerate(users, 1):
+            print(f"  User {i}:")
+            print(f"    Username: {user.username}")
+            print(f"    Email:    {user.email}")
+            print(f"    Password: password123")
+        
+        print("\nData Summary:")
+        print(f"  • Expenses:       20")
+        print(f"  • Budgets:        4")
+        print(f"  • Debts:          2")
+        print(f"  • Friendships:    2")
+        print(f"  • Split Expenses: 2")
+        print(f"  • Settlements:    1")
+        print("="*60)
+        
     except Exception as e:
         db.rollback()
-        logger.exception(f"Error creating mock data: {e}")
-        return {"error": str(e)}
+        print(f"\n✗ Error creating mock data: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
 
-# include API router under /api
-app.include_router(router)
+if __name__ == "__main__":
+    create_mock_data()
