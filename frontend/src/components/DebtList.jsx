@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getDebts, deleteDebt, updateDebt } from "../api";
 
-export default function DebtList({ refresh }) {
+export default function DebtList({ refresh, onPaymentClick }) {
   const [debts, setDebts] = useState([]);
   const [paymentAmount, setPaymentAmount] = useState({});
 
@@ -28,25 +28,14 @@ export default function DebtList({ refresh }) {
     }
   };
 
-  const handlePayment = async (debt) => {
+  const handlePaymentClick = (debt) => {
     const amount = parseFloat(paymentAmount[debt.id] || 0);
     if (amount <= 0) {
       alert("Please enter a valid payment amount");
       return;
     }
-
-    const newRemaining = Math.max(0, debt.remaining_amount - amount);
-    const newStatus = newRemaining === 0 ? "paid" : "active";
-
-    try {
-      await updateDebt(debt.id, {
-        remaining_amount: newRemaining,
-        status: newStatus
-      });
-      setPaymentAmount({ ...paymentAmount, [debt.id]: "" });
-      fetchDebts();
-    } catch (err) {
-      alert(err.message);
+    if (onPaymentClick) {
+      onPaymentClick(debt, amount);
     }
   };
 
@@ -105,15 +94,16 @@ export default function DebtList({ refresh }) {
                     <input
                       type="number"
                       step="0.01"
+                      max={debt.remaining_amount}
                       placeholder="Payment amount"
                       value={paymentAmount[debt.id] || ""}
                       onChange={(e) => setPaymentAmount({ ...paymentAmount, [debt.id]: e.target.value })}
                     />
                     <button 
-                      onClick={() => handlePayment(debt)}
+                      onClick={() => handlePaymentClick(debt)}
                       className="btn-payment"
                     >
-                      Record Payment
+                      Pay
                     </button>
                   </div>
                 </div>

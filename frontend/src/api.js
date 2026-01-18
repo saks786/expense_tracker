@@ -251,3 +251,41 @@ export async function getSettlementSuggestions() {
   return res.json();
 }
 
+/* ================= PAYMENTS & TRANSACTIONS ================= */
+
+export async function createPaymentIntent(payload) {
+  const res = await fetch(`${API_BASE}/api/payments/create-intent`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create payment intent");
+  return res.json();
+}
+
+export async function confirmPayment(payload) {
+  const res = await fetch(`${API_BASE}/api/payments/confirm-payment`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to confirm payment");
+  return res.json();
+}
+
+export async function getTransactionHistory() {
+  const res = await fetch(`${API_BASE}/api/payments/history`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch transactions");
+  return res.json();
+}
+
+export async function getTransactionDetails(transactionId) {
+  const res = await fetch(`${API_BASE}/api/payments/${transactionId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch transaction details");
+  return res.json();
+}
+

@@ -152,3 +152,26 @@ class Settlement(Base):
     to_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# ------------------ TRANSACTION (PAYMENTS) ------------------
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    stripe_payment_intent_id = Column(String, unique=True, index=True, nullable=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="INR")
+    payment_method = Column(String, nullable=False)  # "card" or "upi"
+    transaction_type = Column(String, nullable=False)  # "debt_payment" or "split_expense_payment"
+    debt_id = Column(Integer, ForeignKey("debts.id"), nullable=True)
+    split_expense_id = Column(Integer, ForeignKey("split_expenses.id"), nullable=True)
+    status = Column(String, default="pending")  # "pending", "succeeded", "failed"
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", backref="transactions")
+    debt = relationship("Debt", backref="payments")
+    split_expense = relationship("SplitExpense", backref="payments")

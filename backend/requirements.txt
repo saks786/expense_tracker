@@ -8,3 +8,5 @@ passlib[argon2]
 python-multipart
 pydantic[email]
  sendgrid
+stripe
+httpx
