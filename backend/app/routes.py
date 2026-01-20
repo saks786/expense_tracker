@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, timedelta
 from typing import List
 from .email_service import send_email
+import logging
+import json
+
+logger = logging.getLogger(__name__)
 
 
 from .database import SessionLocal
@@ -356,7 +360,25 @@ def list_friends(
         ((Friendship.user_id == current_user.id) | (Friendship.friend_id == current_user.id)),
         Friendship.status == "accepted"
     ).all()
-    return friendships
+
+    # Populate friend_username for each friendship
+    result = []
+    for friendship in friendships:
+        # Determine which user is the friend (not the current user)
+        friend_id = friendship.friend_id if friendship.user_id == current_user.id else friendship.user_id
+        friend = db.query(User).filter(User.id == friend_id).first()
+
+        friendship_dict = {
+            "id": friendship.id,
+            "user_id": friendship.user_id,
+            "friend_id": friendship.friend_id,
+            "status": friendship.status,
+            "created_at": friendship.created_at,
+            "friend_username": friend.username if friend else None
+        }
+        result.append(friendship_dict)
+
+    return result
 
 
 @router.get("/friends/requests", response_model=List[FriendshipResponse])
@@ -369,7 +391,23 @@ def list_friend_requests(
         Friendship.friend_id == current_user.id,
         Friendship.status == "pending"
     ).all()
-    return requests
+
+    # Populate friend_username for each request (the user who sent the request)
+    result = []
+    for request in requests:
+        requester = db.query(User).filter(User.id == request.user_id).first()
+
+        request_dict = {
+            "id": request.id,
+            "user_id": request.user_id,
+            "friend_id": request.friend_id,
+            "status": request.status,
+            "created_at": request.created_at,
+            "friend_username": requester.username if requester else None
+        }
+        result.append(request_dict)
+
+    return result
 
 
 @router.post("/friends/request", response_model=FriendshipResponse)
@@ -433,8 +471,15 @@ def send_friend_request(
                     existing.status = "accepted"
                     db.commit()
                     db.refresh(existing)
-                    return existing
-        
+                    return {
+                        "id": existing.id,
+                        "user_id": existing.user_id,
+                        "friend_id": existing.friend_id,
+                        "status": existing.status,
+                        "created_at": existing.created_at,
+                        "friend_username": friend.username
+                    }
+
         new_friendship = Friendship(
             user_id=current_user.id,
             friend_id=friend.id,
@@ -444,7 +489,14 @@ def send_friend_request(
         db.commit()
         db.refresh(new_friendship)
         logger.info(f"Friend request created successfully: id={new_friendship.id}")
-        return new_friendship
+        return {
+            "id": new_friendship.id,
+            "user_id": new_friendship.user_id,
+            "friend_id": new_friendship.friend_id,
+            "status": new_friendship.status,
+            "created_at": new_friendship.created_at,
+            "friend_username": friend.username
+        }
         
     except HTTPException:
         raise
@@ -464,14 +516,25 @@ def accept_friend_request(
         Friendship.friend_id == current_user.id,
         Friendship.status == "pending"
     ).first()
-    
+
     if not friendship:
         raise HTTPException(status_code=404, detail="Friend request not found")
-    
+
     friendship.status = "accepted"
     db.commit()
     db.refresh(friendship)
-    return friendship
+
+    # Get the requester's username
+    requester = db.query(User).filter(User.id == friendship.user_id).first()
+
+    return {
+        "id": friendship.id,
+        "user_id": friendship.user_id,
+        "friend_id": friendship.friend_id,
+        "status": friendship.status,
+        "created_at": friendship.created_at,
+        "friend_username": requester.username if requester else None
+    }
 
 
 @router.delete("/friends/{friendship_id}")
@@ -508,17 +571,33 @@ def list_split_expenses(
 
 
 @router.post("/split-expenses", response_model=SplitExpenseResponse)
-def create_split_expense(
-    expense: SplitExpenseCreate,
+async def create_split_expense(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Get participant users
+    # Log raw request body
+    try:
+        body = await request.json()
+        logger.info(f"Raw split expense request body: {json.dumps(body, indent=2)}")
+    except Exception as e:
+        logger.error(f"Failed to parse request body: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON in request body")
+    
+    # Validate with Pydantic
+    try:
+        expense = SplitExpenseCreate(**body)
+        logger.info(f"Validated split expense data: {expense.model_dump()}")
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    # Get participant users by IDs
     participants = []
-    for username in expense.participant_usernames:
-        user = db.query(User).filter(User.username == username).first()
+    for user_id in expense.participant_ids:
+        user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail=f"User {username} not found")
+            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
         participants.append(user)
     
     # Add current user to participants if not already included
@@ -536,6 +615,7 @@ def create_split_expense(
     db.add(new_split_expense)
     db.commit()
     db.refresh(new_split_expense)
+    logger.info(f"Split expense created successfully - ID: {new_split_expense.id}")
     return new_split_expense
 
 

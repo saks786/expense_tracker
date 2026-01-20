@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Union, Any
 
 # ================= USERS =================
 
@@ -120,6 +120,7 @@ class FriendshipResponse(BaseModel):
     friend_id: int
     status: str
     created_at: datetime
+    friend_username: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -131,8 +132,22 @@ class SplitExpenseCreate(BaseModel):
     description: str
     total_amount: float
     category: str
-    date: Optional[date] = None
-    participant_usernames: List[str]
+    participant_ids: List[int]  # Changed from participant_usernames to participant_ids
+    date: Any = None  # Accept any type, will be validated/converted
+    
+    @field_validator('date', mode='before')
+    @classmethod
+    def validate_date(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, date):
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except:
+                return None
+        return None
 
 
 class ParticipantInfo(BaseModel):
