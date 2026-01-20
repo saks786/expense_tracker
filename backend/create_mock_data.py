@@ -20,7 +20,7 @@ def create_mock_data():
         existing_user = db.query(models.User).filter(models.User.username == "testuser1").first()
         if existing_user:
             print("✓ Mock data already exists!")
-            print("  Delete the database file (dev.db) to recreate mock data.")
+            print("  Delete existing users from database to recreate mock data.")
             return
         
         print("Creating mock data...")

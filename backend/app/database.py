@@ -6,18 +6,34 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 logger = logging.getLogger(__name__)
 
-# Prefer explicit DATABASE_URL environment variable (set by Render / your env)
+# Supabase PostgreSQL DATABASE_URL (required for production)
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 if not DATABASE_URL:
-    # fallback to sqlite for local development when DATABASE_URL not provided.
-    logger.warning("DATABASE_URL not set — falling back to sqlite:///./dev.db (development only)")
-    DATABASE_URL = "sqlite:///./dev.db"
+    raise ValueError(
+        "❌ DATABASE_URL environment variable is required! "
+        "Please set your Supabase PostgreSQL connection string in .env file."
+    )
 
-# For proper PostgreSQL parsing, accept both postgres:// and postgresql://
-# SQLAlchemy >=1.4 handles these, so we just pass the URL through.
-# create_engine() options: pool_pre_ping helps recover stale connections on cloud DBs
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {})
+if not DATABASE_URL.startswith("postgresql"):
+    raise ValueError(
+        f"❌ Invalid DATABASE_URL: {DATABASE_URL}. "
+        "Only PostgreSQL (Supabase) is supported. URL must start with 'postgresql://'"
+    )
+
+logger.info("🔄 Connecting to Supabase PostgreSQL...")
+
+# Create PostgreSQL engine with connection pooling
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Verify connections before using them
+    pool_size=10,  # Maximum number of permanent connections
+    max_overflow=20,  # Maximum number of temporary connections
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    echo=False  # Set to True for SQL query logging during development
+)
+
+logger.info("✅ Successfully connected to Supabase PostgreSQL!")
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

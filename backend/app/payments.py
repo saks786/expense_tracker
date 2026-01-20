@@ -13,7 +13,7 @@ from .routes import get_current_user, get_db
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-stripe_webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+stripe_webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET") 
 
 logger = logging.getLogger("payments")
 
