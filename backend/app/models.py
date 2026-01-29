@@ -13,7 +13,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
 
-# ------------------ ASSOCIATION TABLE ------------------
+# ------------------ ASSOCIATION TABLES ------------------
 
 split_participants = Table(
     "split_participants",
@@ -59,6 +59,18 @@ class User(Base):
         "SplitExpense",
         secondary=split_participants,
         back_populates="participants",
+    )
+
+    # Group relationships
+    groups_created = relationship(
+        "Group",
+        back_populates="creator",
+        cascade="all, delete-orphan",
+    )
+    group_memberships = relationship(
+        "GroupMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
 # ------------------ EXPENSE ------------------
@@ -175,3 +187,90 @@ class Transaction(Base):
     user = relationship("User", backref="transactions")
     debt = relationship("Debt", backref="payments")
     split_expense = relationship("SplitExpense", backref="payments")
+
+# ------------------ GROUP ------------------
+
+class Group(Base):
+    __tablename__ = "groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    currency = Column(String, default="INR", nullable=False)
+    image_url = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    creator = relationship("User", back_populates="groups_created")
+
+    members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
+    expenses = relationship("GroupExpense", back_populates="group", cascade="all, delete-orphan")
+    settlements = relationship("GroupSettlement", back_populates="group", cascade="all, delete-orphan")
+
+# ------------------ GROUP MEMBER ------------------
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(String, default="member", nullable=False)  # "admin" or "member"
+    status = Column(String, default="pending", nullable=False)  # "pending" or "accepted"
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    group = relationship("Group", back_populates="members")
+    user = relationship("User", back_populates="group_memberships")
+
+# ------------------ GROUP EXPENSE ------------------
+
+class GroupExpense(Base):
+    __tablename__ = "group_expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    description = Column(String, nullable=False)
+    total_amount = Column(Float, nullable=False)
+    category = Column(String, nullable=False)
+    date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    paid_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    payer = relationship("User", backref="group_expenses_paid")
+    
+    group = relationship("Group", back_populates="expenses")
+    participants = relationship(
+        "GroupExpenseParticipant",
+        back_populates="expense",
+        cascade="all, delete-orphan"
+    )
+
+# ------------------ GROUP EXPENSE PARTICIPANT ------------------
+
+class GroupExpenseParticipant(Base):
+    __tablename__ = "group_expense_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_expense_id = Column(Integer, ForeignKey("group_expenses.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    share_amount = Column(Float, nullable=False)
+
+    expense = relationship("GroupExpense", back_populates="participants")
+    user = relationship("User", backref="group_expense_participations")
+
+# ------------------ GROUP SETTLEMENT ------------------
+
+class GroupSettlement(Base):
+    __tablename__ = "group_settlements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    from_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    to_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    group = relationship("Group", back_populates="settlements")
+    from_user = relationship("User", foreign_keys=[from_user_id], backref="group_settlements_made")
+    to_user = relationship("User", foreign_keys=[to_user_id], backref="group_settlements_received")

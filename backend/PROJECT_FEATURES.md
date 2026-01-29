@@ -1,9 +1,9 @@
 # Expense Tracker Backend - Features Documentation
 
 ## Overview
-A comprehensive FastAPI-based expense tracking system with advanced features for personal finance management, social expense splitting, and debt tracking.
+A comprehensive FastAPI-based expense tracking system with advanced features for personal finance management, social expense splitting, and organized group expense management with role-based permissions.
 
-**Version:** 2.0.0
+**Version:** 3.0.0
 **Framework:** FastAPI
 **Database:** SQLAlchemy (PostgreSQL/SQLite)
 **Authentication:** JWT (JSON Web Tokens)
@@ -285,7 +285,172 @@ A comprehensive FastAPI-based expense tracking system with advanced features for
 
 ---
 
-### 8. Balance & Settlement System
+### 8. Groups System (Advanced Expense Management)
+
+#### Overview
+Comprehensive group expense management system for organized trips, events, shared living, and team expenses with role-based permissions, custom splits, and settlement tracking.
+
+#### Create Group (`POST /api/groups`)
+- Creates a new expense group
+- Creator automatically becomes admin
+- Custom currency support (default: INR)
+
+**Request:**
+```json
+{
+  "name": "Trip to Goa",
+  "description": "Planning our vacation expenses",
+  "currency": "INR",
+  "image_url": "https://example.com/image.jpg"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Trip to Goa",
+  "description": "Planning our vacation expenses",
+  "currency": "INR",
+  "image_url": "https://example.com/image.jpg",
+  "is_active": true,
+  "created_by": 1,
+  "created_at": "2026-01-27T10:00:00",
+  "members": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "username": "john_doe",
+      "role": "admin",
+      "status": "accepted",
+      "joined_at": "2026-01-27T10:00:00"
+    }
+  ]
+}
+```
+
+#### List Groups (`GET /api/groups`)
+- Returns all groups where user is a member
+- Shows member count and user's role
+
+#### Invite Members (`POST /api/groups/{group_id}/invite`)
+- Any group member can invite users
+- Invitations require acceptance
+- Prevents duplicate invitations
+
+**Request:**
+```json
+{
+  "usernames": ["user2", "user3"]
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Successfully invited 2 user(s). Users not found: none. Already members: none"
+}
+```
+
+#### Accept Invitation (`POST /api/groups/{group_id}/join`)
+- User accepts pending invitation
+- Changes status from "pending" to "accepted"
+
+#### Group Expenses with Custom Splits (`POST /api/groups/{group_id}/expenses`)
+- Add expenses with custom split amounts
+- Track who paid and who owes what
+- Supports unequal splits
+
+**Request:**
+```json
+{
+  "description": "Hotel booking for 3 nights",
+  "total_amount": 12000.0,
+  "category": "Accommodation",
+  "paid_by": 1,
+  "participants": [
+    {"user_id": 1, "share_amount": 4000.0},
+    {"user_id": 2, "share_amount": 4000.0},
+    {"user_id": 3, "share_amount": 4000.0}
+  ],
+  "date": "2026-01-27"
+}
+```
+
+**Validation:**
+- Sum of share_amounts must equal total_amount
+- All participants must be group members
+- Paid_by user must be a group member
+
+#### Group Balances (`GET /api/groups/{group_id}/balances`)
+- Calculate net balances for all members
+- Shows who owes whom within the group
+- Real-time calculation based on expenses and settlements
+
+**Response:**
+```json
+{
+  "1": {"username": "john_doe", "balance": 8000.0},
+  "2": {"username": "jane_smith", "balance": -4000.0},
+  "3": {"username": "bob_jones", "balance": -4000.0}
+}
+```
+
+**Balance Interpretation:**
+- Positive balance: Others owe you this amount
+- Negative balance: You owe others this amount
+- Zero balance: All settled up
+
+#### Settlement Suggestions (`GET /api/groups/{group_id}/settlements/suggestions`)
+- Automated payment recommendations
+- Minimizes number of transactions using greedy algorithm
+- Simplifies complex multi-person debts
+
+**Response:**
+```json
+[
+  {
+    "from_username": "jane_smith",
+    "to_username": "john_doe",
+    "amount": 4000.0
+  },
+  {
+    "from_username": "bob_jones",
+    "to_username": "john_doe",
+    "amount": 4000.0
+  }
+]
+```
+
+#### Record Settlement (`POST /api/groups/{group_id}/settlements`)
+- Record payments between group members
+- Updates balance calculations automatically
+- Maintains settlement history
+
+**Request:**
+```json
+{
+  "from_user_id": 2,
+  "to_user_id": 1,
+  "amount": 4000.0
+}
+```
+
+#### Role-Based Permissions
+- **Admin**: Full control - edit group, manage members, edit/delete all expenses
+- **Member**: Create expenses, invite others, view balances, record settlements
+
+#### Additional Group Features
+- Update group details (admin only)
+- Archive groups (admin only)
+- Update member roles (admin only)
+- Remove members (admin only)
+- List all group expenses
+- Update/delete expenses (creator or admin)
+
+---
+
+### 9. Balance & Settlement System
 
 #### Get Balances (`GET /api/balances`)
 - Calculate net balances between users
@@ -354,7 +519,7 @@ A comprehensive FastAPI-based expense tracking system with advanced features for
 
 ---
 
-### 9. Email Notifications
+### 10. Email Notifications
 
 #### SendGrid Integration
 - Email service via SendGrid API
@@ -438,6 +603,66 @@ A comprehensive FastAPI-based expense tracking system with advanced features for
    - to_user_id (Foreign Key)
    - amount
    - created_at
+
+9. **groups**
+   - id (Primary Key)
+   - name
+   - description
+   - currency
+   - image_url
+   - is_active
+   - created_by (Foreign Key)
+   - created_at
+
+10. **group_members**
+    - id (Primary Key)
+    - group_id (Foreign Key)
+    - user_id (Foreign Key)
+    - role (admin/member)
+    - status (pending/accepted)
+    - joined_at
+
+11. **group_expenses**
+    - id (Primary Key)
+    - group_id (Foreign Key)
+    - description
+    - total_amount
+
+### Groups (Advanced Expense Management)
+- `GET /api/groups` - List all user's groups
+- `POST /api/groups` - Create a new group
+- `GET /api/groups/{group_id}` - Get group details
+- `PUT /api/groups/{group_id}` - Update group (admin only)
+- `DELETE /api/groups/{group_id}` - Archive group (admin only)
+- `POST /api/groups/{group_id}/invite` - Invite members
+- `POST /api/groups/{group_id}/join` - Accept invitation
+- `PUT /api/groups/{group_id}/members/{user_id}` - Update member role (admin only)
+- `DELETE /api/groups/{group_id}/members/{user_id}` - Remove member (admin only)
+- `GET /api/groups/{group_id}/expenses` - List group expenses
+- `POST /api/groups/{group_id}/expenses` - Add group expense
+- `PUT /api/groups/{group_id}/expenses/{expense_id}` - Update expense (creator/admin)
+- `DELETE /api/groups/{group_id}/expenses/{expense_id}` - Delete expense (creator/admin)
+- `GET /api/groups/{group_id}/balances` - Get group balances
+- `GET /api/groups/{group_id}/settlements/suggestions` - Get settlement suggestions
+- `POST /api/groups/{group_id}/settlements` - Record settlement
+    - category
+    - paid_by (Foreign Key)
+    - date
+    - created_at
+
+12. **group_expense_participants**
+    - id (Primary Key)
+    - group_expense_id (Foreign Key)
+    - user_id (Foreign Key)
+    - share_amount
+
+13. **group_settlements**
+    - id (Primary Key)
+    - group_id (Foreign Key)
+    - from_user_id (Foreign Key)
+    - to_user_id (Foreign Key)
+    - amount
+    - created_at
 
 ---
 
@@ -643,7 +868,16 @@ Based on the schema, these features are modeled but may need route implementatio
 
 ## Version History
 
-**v2.0.0** (Current)
+**v3.0.0** (Current - January 2026)
+- Complete Groups system with role-based permissions
+- Custom expense splits with flexible share amounts
+- Group balance calculation and settlement tracking
+- Settlement optimization algorithm
+- Member invitation and management
+- Username-based member invitations
+- Support for organized trips, events, and shared living
+
+**v2.0.0**
 - Complete expense management system
 - Social features with split expenses
 - Settlement system

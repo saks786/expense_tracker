@@ -19,6 +19,11 @@ from .models import (
     Debt,
     Friendship,
     SplitExpense,
+    Group,
+    GroupMember,
+    GroupExpense,
+    GroupExpenseParticipant,
+    GroupSettlement,
 )
 from .schemas import (
     ExpenseCreate,
@@ -455,16 +460,26 @@ def send_friend_request(
         if existing:
             logger.info(f"Existing friendship found: status={existing.status}, user_id={existing.user_id}, friend_id={existing.friend_id}")
             if existing.status == "accepted":
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"You are already friends with {friend.username}"
-                )
+                # Return 200 with message instead of 400 error
+                return {
+                    "id": existing.id,
+                    "user_id": existing.user_id,
+                    "friend_id": existing.friend_id,
+                    "status": "accepted",
+                    "created_at": existing.created_at,
+                    "message": f"You are already friends with {friend.username}"
+                }
             elif existing.status == "pending":
                 if existing.user_id == current_user.id:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Friend request to {friend.username} is already pending"
-                    )
+                    # Return 200 with message instead of 400 error
+                    return {
+                        "id": existing.id,
+                        "user_id": existing.user_id,
+                        "friend_id": existing.friend_id,
+                        "status": "pending",
+                        "created_at": existing.created_at,
+                        "message": f"Friend request to {friend.username} is already pending"
+                    }
                 else:
                     # Auto-accept if they sent us a request and we're trying to send one back
                     logger.info(f"Auto-accepting friend request from {friend.username}")
@@ -505,7 +520,7 @@ def send_friend_request(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.put("/friends/{friendship_id}/accept", response_model=FriendshipResponse)
+@router.post("/friends/accept/{friendship_id}", response_model=FriendshipResponse)
 def accept_friend_request(
     friendship_id: int,
     current_user: User = Depends(get_current_user),

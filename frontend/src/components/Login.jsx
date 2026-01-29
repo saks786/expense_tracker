@@ -1,8 +1,10 @@
 // src/components/Login.jsx
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import { login } from "../api";
 
-export default function Login({ onLogin, onSwitchToRegister }) {
+export default function Login({ onLogin }) {
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,9 +70,15 @@ try {
 
         <p className="auth-footer">
           Don’t have an account?{" "}
-          <button onClick={onSwitchToRegister} className="link-button">
+          <Link to="/register" className="link-button">
             Register
-          </button>
+          </Link>
+        </p>
+        
+        <p className="auth-footer" style={{ marginTop: '8px' }}>
+          <Link to="/" className="link-button">
+            ← Back to Home
+          </Link>
         </p>
       </div>
     </div>

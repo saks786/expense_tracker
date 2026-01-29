@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { getDebts, deleteDebt, updateDebt } from "../api";
 
 export default function DebtList({ refresh, onPaymentClick }) {
@@ -23,15 +24,16 @@ export default function DebtList({ refresh, onPaymentClick }) {
     try {
       await deleteDebt(id);
       fetchDebts();
+      toast.success("Debt deleted successfully!");
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
   const handlePaymentClick = (debt) => {
     const amount = parseFloat(paymentAmount[debt.id] || 0);
     if (amount <= 0) {
-      alert("Please enter a valid payment amount");
+      toast.error("Please enter a valid payment amount");
       return;
     }
     if (onPaymentClick) {

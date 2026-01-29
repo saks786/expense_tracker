@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import {
   getFriends,
   getFriendRequests,
@@ -16,8 +17,6 @@ export default function FriendList({ onUpdate }) {
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     fetchFriends();
@@ -26,13 +25,12 @@ export default function FriendList({ onUpdate }) {
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
-    setError("");
     try {
       const data = await getFriends();
       setFriends(data || []);
     } catch (err) {
       console.error(err);
-      setError(err?.message || "Failed to load friends.");
+      toast.error(err?.message || "Failed to load friends.");
     } finally {
       setLoadingFriends(false);
     }
@@ -40,13 +38,12 @@ export default function FriendList({ onUpdate }) {
 
   const fetchRequests = async () => {
     setLoadingRequests(true);
-    setError("");
     try {
       const data = await getFriendRequests();
       setRequests(data || []);
     } catch (err) {
       console.error(err);
-      setError(err?.message || "Failed to load friend requests.");
+      toast.error(err?.message || "Failed to load friend requests.");
     } finally {
       setLoadingRequests(false);
     }
@@ -58,58 +55,50 @@ export default function FriendList({ onUpdate }) {
     if (!username) return;
 
     setSendingRequest(true);
-    setError("");
-    setSuccess("");
     try {
       await sendFriendRequest(username);
       setNewFriendUsername("");
-      setSuccess("Friend request sent.");
+      toast.success("Friend request sent.");
       fetchRequests();
     } catch (err) {
-      setError(err?.message || "Failed to send friend request.");
+      toast.error(err?.message || "Failed to send friend request.");
     } finally {
       setSendingRequest(false);
     }
   };
 
   const handleAccept = async (friendshipId) => {
-    setError("");
-    setSuccess("");
     try {
       await acceptFriendRequest(friendshipId);
       await Promise.all([fetchFriends(), fetchRequests()]);
-      setSuccess("Friend request accepted.");
+      toast.success("Friend request accepted.");
       if (typeof onUpdate === "function") onUpdate();
     } catch (err) {
-      setError(err?.message || "Failed to accept friend request.");
+      toast.error(err?.message || "Failed to accept friend request.");
     }
   };
 
   const handleRemoveFriend = async (friendshipId) => {
     if (!window.confirm("Are you sure you want to remove this friend?")) return;
-    setError("");
-    setSuccess("");
     try {
       await removeFriend(friendshipId);
       await fetchFriends();
-      setSuccess("Friend removed.");
+      toast.success("Friend removed.");
       if (typeof onUpdate === "function") onUpdate();
     } catch (err) {
-      setError(err?.message || "Failed to remove friend.");
+      toast.error(err?.message || "Failed to remove friend.");
     }
   };
 
   const handleRejectRequest = async (friendshipId) => {
     if (!window.confirm("Are you sure you want to reject this friend request?")) return;
-    setError("");
-    setSuccess("");
     try {
       await removeFriend(friendshipId);
       await fetchRequests();
-      setSuccess("Friend request rejected.");
+      toast.success("Friend request rejected.");
       if (typeof onUpdate === "function") onUpdate();
     } catch (err) {
-      setError(err?.message || "Failed to reject request.");
+      toast.error(err?.message || "Failed to reject request.");
     }
   };
 
@@ -135,31 +124,6 @@ export default function FriendList({ onUpdate }) {
           </button>
         </form>
       </div>
-
-      {(error || success) && (
-        <div style={{ marginBottom: 16 }}>
-          {error && (
-            <div className="error-message" role="alert">
-              {error}
-            </div>
-          )}
-          {success && !error && (
-            <div
-              style={{
-                background: "#ecfdf3",
-                color: "#166534",
-                padding: "12px 14px",
-                borderRadius: 12,
-                borderLeft: "4px solid #22c55e",
-                fontSize: "0.9rem",
-                marginTop: error ? 8 : 0,
-              }}
-            >
-              {success}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="main-tabs" style={{ marginBottom: 20 }}>
         <button

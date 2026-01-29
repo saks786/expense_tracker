@@ -1,0 +1,8 @@
+# Test files - do not commit
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+test_results.xml

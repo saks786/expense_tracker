@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { addSplitExpense, getFriends } from "../api";
 
 export default function SplitExpenseForm({ onExpenseAdded }) {
@@ -15,8 +16,6 @@ export default function SplitExpenseForm({ onExpenseAdded }) {
   const [friends, setFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     fetchFriends();
@@ -24,13 +23,11 @@ export default function SplitExpenseForm({ onExpenseAdded }) {
 
   const fetchFriends = async () => {
     setLoadingFriends(true);
-    setError("");
     try {
       const data = await getFriends();
       setFriends(data || []);
     } catch (err) {
-      console.error(err);
-      setError(err?.message || "Failed to load friends.");
+      toast.error(err?.message || "Failed to load friends");
     } finally {
       setLoadingFriends(false);
     }
@@ -68,12 +65,10 @@ export default function SplitExpenseForm({ onExpenseAdded }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     const v = validate();
     if (v) {
-      setError(v);
+      toast.error(v);
       return;
     }
 
@@ -95,11 +90,10 @@ export default function SplitExpenseForm({ onExpenseAdded }) {
         participant_ids: []
       });
 
-      setSuccess("Split expense added.");
+      toast.success("Split expense added successfully!");
       if (typeof onExpenseAdded === "function") onExpenseAdded();
     } catch (err) {
-      console.error(err);
-      setError(err?.message || "Failed to add split expense.");
+      toast.error(err?.message || "Failed to add split expense");
     } finally {
       setSubmitting(false);
     }
@@ -109,23 +103,6 @@ export default function SplitExpenseForm({ onExpenseAdded }) {
     <div className="form-container">
       <form onSubmit={handleSubmit} className="expense-form split-expense-form" aria-labelledby="split-form-title">
         <div className="form-title" id="split-form-title">🤝 Split an Expense</div>
-
-        {error && <div role="alert" className="error-message" style={{ marginBottom: 12 }}>{error}</div>}
-        {success && !error && (
-          <div
-            style={{
-              background: "#ecfdf3",
-              color: "#166534",
-              padding: "12px 14px",
-              borderRadius: 12,
-              borderLeft: "4px solid #22c55e",
-              fontSize: "0.9rem",
-              marginBottom: 12
-            }}
-          >
-            {success}
-          </div>
-        )}
 
         <div className="form-grid" style={{ gap: 16 }}>
           <div className="form-group full-width">

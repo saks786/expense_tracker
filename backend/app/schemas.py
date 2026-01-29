@@ -224,3 +224,144 @@ class TransactionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ================= GROUPS =================
+
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    currency: str = "INR"
+    image_url: Optional[str] = None
+
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    currency: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class GroupMemberInfo(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    role: str
+    status: str
+    joined_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class GroupResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    currency: str
+    image_url: Optional[str]
+    is_active: bool
+    created_by: int
+    created_at: datetime
+    members: List[GroupMemberInfo] = []
+
+    class Config:
+        from_attributes = True
+
+
+class GroupInvite(BaseModel):
+    usernames: List[str]  # List of usernames to invite
+
+
+class GroupMemberUpdate(BaseModel):
+    role: Optional[str] = None  # "admin" or "member"
+    status: Optional[str] = None  # "pending" or "accepted"
+
+
+# ================= GROUP EXPENSES =================
+
+class GroupExpenseParticipantInput(BaseModel):
+    user_id: int
+    share_amount: float
+
+
+class GroupExpenseCreate(BaseModel):
+    description: str
+    total_amount: float
+    category: str
+    paid_by: int  # User ID who paid
+    participants: List[GroupExpenseParticipantInput]
+    date: Any = None
+    
+    @field_validator('date', mode='before')
+    @classmethod
+    def validate_date(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, date):
+            return v
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except:
+                return None
+        return None
+    
+    @field_validator('participants')
+    @classmethod
+    def validate_participants(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError('At least one participant is required')
+        return v
+
+
+class GroupExpenseUpdate(BaseModel):
+    description: Optional[str] = None
+    total_amount: Optional[float] = None
+    category: Optional[str] = None
+    date: Optional[date] = None
+
+
+class GroupExpenseParticipantResponse(BaseModel):
+    user_id: int
+    username: str
+    share_amount: float
+
+    class Config:
+        from_attributes = True
+
+
+class GroupExpenseResponse(BaseModel):
+    id: int
+    group_id: int
+    description: str
+    total_amount: float
+    category: str
+    date: date
+    paid_by: int
+    payer_username: str
+    created_at: datetime
+    participants: List[GroupExpenseParticipantResponse]
+
+    class Config:
+        from_attributes = True
+
+
+# ================= GROUP SETTLEMENTS =================
+
+class GroupSettlementCreate(BaseModel):
+    to_user_id: int
+    amount: float
+
+
+class GroupSettlementResponse(BaseModel):
+    id: int
+    group_id: int
+    from_user_id: int
+    to_user_id: int
+    amount: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

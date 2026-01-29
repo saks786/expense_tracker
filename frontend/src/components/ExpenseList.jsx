@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 import EditExpenseModal from "./EditExpenseModal";
 import { updateExpense, deleteExpense } from "../api";
 
@@ -34,9 +35,10 @@ export default function ExpenseList({ expenses, onUpdate }) {
       await updateExpense(editingExpense.id, updatedData);
       setEditingExpense(null);
       onUpdate();
+      toast.success("Expense updated successfully!");
     } catch (error) {
       console.error("Error updating expense:", error);
-      alert("Failed to update expense");
+      toast.error("Failed to update expense");
     }
   };
 
@@ -45,9 +47,10 @@ export default function ExpenseList({ expenses, onUpdate }) {
       try {
         await deleteExpense(id);
         onUpdate();
+        toast.success("Expense deleted successfully!");
       } catch (error) {
         console.error("Error deleting expense:", error);
-        alert("Failed to delete expense");
+        toast.error("Failed to delete expense");
       }
     }
   };

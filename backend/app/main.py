@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from . import models
 from .database import engine, get_db
 from .routes import router
+from .routes_groups import router as groups_router
 from .auth import get_password_hash
 from .payments import router as payment_router
 
@@ -197,4 +198,5 @@ async def create_mock_data(db: Session = Depends(get_db)):
 
 # include API router under /api
 app.include_router(router)
+app.include_router(groups_router)
 app.include_router(payment_router)

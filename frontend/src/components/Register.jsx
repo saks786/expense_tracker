@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { register } from "../api";
 
-export default function Register({ onRegister, onSwitchToLogin }) {
+export default function Register({ onRegister }) {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,8 +27,8 @@ export default function Register({ onRegister, onSwitchToLogin }) {
     
     try {
       await register(form.username, form.email, form.password);
-      alert("Registration successful! Please login.");
-      onSwitchToLogin();
+      toast.success("Registration successful! Redirecting to login...");
+      setTimeout(() => navigate("/login"), 1000);
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
@@ -99,9 +102,15 @@ export default function Register({ onRegister, onSwitchToLogin }) {
 
         <div className="auth-footer">
           Already have an account?{" "}
-          <button onClick={onSwitchToLogin} className="link-button">
+          <Link to="/login" className="link-button">
             Login here
-          </button>
+          </Link>
+        </div>
+        
+        <div className="auth-footer" style={{ marginTop: '8px' }}>
+          <Link to="/" className="link-button">
+            ← Back to Home
+          </Link>
         </div>
       </div>
     </div>

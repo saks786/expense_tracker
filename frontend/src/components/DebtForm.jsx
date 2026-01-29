@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { addDebt } from "../api";
+import toast from "react-hot-toast";
 
 export default function DebtForm({ onDebtAdded }) {
   const today = new Date().toISOString().split("T")[0];
@@ -13,7 +14,6 @@ export default function DebtForm({ onDebtAdded }) {
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
   const clampEmiDate = (value) => {
     const n = Number(value);
@@ -50,10 +50,9 @@ export default function DebtForm({ onDebtAdded }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     const v = validate();
     if (v) {
-      setError(v);
+      toast.error(v);
       return;
     }
 
@@ -62,12 +61,16 @@ export default function DebtForm({ onDebtAdded }) {
       await addDebt({
         name: form.name.trim(),
         principal_amount: parseFloat(form.principal_amount),
+        remaining_amount: parseFloat(form.principal_amount), // Initially same as principal
         interest_rate: parseFloat(form.interest_rate),
         emi_amount: parseFloat(form.emi_amount),
         emi_date: parseInt(form.emi_date, 10),
-        start_date: form.start_date
+        start_date: form.start_date,
+        status: "active"
       });
 
+      toast.success("Debt added successfully!");
+      
       setForm({
         name: "",
         principal_amount: "",
@@ -79,7 +82,7 @@ export default function DebtForm({ onDebtAdded }) {
 
       if (typeof onDebtAdded === "function") onDebtAdded();
     } catch (err) {
-      setError(err?.message || "Failed to add debt.");
+      toast.error(err?.message || "Failed to add debt");
     } finally {
       setSubmitting(false);
     }
@@ -89,12 +92,6 @@ export default function DebtForm({ onDebtAdded }) {
     <div className="form-container">
       <form onSubmit={handleSubmit} className="expense-form debt-form" aria-labelledby="debt-form-title">
         <div className="form-title" id="debt-form-title">📋 Add New Debt</div>
-
-        {error && (
-          <div role="alert" className="error-message" style={{ marginBottom: 12 }}>
-            {error}
-          </div>
-        )}
 
         <div className="form-group">
           <label htmlFor="debt-name">Debt Name</label>

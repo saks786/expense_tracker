@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import {
   getSplitExpenses,
   deleteSplitExpense,
@@ -36,9 +37,10 @@ export default function SplitExpenseList({ refresh, onPaymentClick }) {
     if (!confirm("Delete this split expense?")) return;
     try {
       await deleteSplitExpense(id);
+      toast.success("Split expense deleted successfully");
       loadData();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || "Failed to delete split expense");
     }
   };
 

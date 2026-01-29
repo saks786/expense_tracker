@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function ExpenseForm({ onAdd }) {
   const [form, setForm] = useState({ category: "", amount: "", description: "" });
@@ -8,7 +9,7 @@ export default function ExpenseForm({ onAdd }) {
   const submit = (e) => {
     e.preventDefault();
     if (!form.category || !form.amount) {
-      alert("Please fill in category and amount");
+      toast.error("Please fill in category and amount");
       return;
     }
     onAdd({ ...form, amount: parseFloat(form.amount) });
