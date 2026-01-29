@@ -25,6 +25,8 @@ frontend_origins = [
     "http://localhost:5173",
     "http://localhost:5413",
     "http://localhost:5174",
+    "http://140.245.14.94",
+    "http://140.245.14.94:5413",
 ]
 
 app.add_middleware(
