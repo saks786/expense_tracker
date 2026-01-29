@@ -10,8 +10,8 @@ import json
 # Configuration
 BASE_URL = "http://localhost:8000"
 TEST_USERS = {
-    "user1": {"username": "testuser1", "email": "test1@example.com", "password": "password123"},
-    "user2": {"username": "testuser2", "email": "test2@example.com", "password": "password123"},
+    "user1": {"username": "testuser1", "email": "test1@example.com", "password": "testpass123"},
+    "user2": {"username": "testuser2", "email": "test2@example.com", "password": "testpass123"},
     "user3": {"username": "testuser3", "email": "test3@example.com", "password": "password123"},
 }
 
