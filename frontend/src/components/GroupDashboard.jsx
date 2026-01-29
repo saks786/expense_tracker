@@ -52,9 +52,17 @@ export default function GroupDashboard({ groupId, onBack }) {
       
       setGroup(groupData);
       setExpenses(expensesData);
-      // Extract balances array from the response object
-      const balancesArray = balancesData?.balances || [];
-      const settlementsArray = settlementsData?.settlements || [];
+      
+      // Convert balances object to array, preserving user_id
+      const balancesArray = balancesData 
+        ? Object.entries(balancesData).map(([userId, data]) => ({
+            user_id: parseInt(userId),
+            ...data
+          }))
+        : [];
+      
+      // Settlements is already an array
+      const settlementsArray = Array.isArray(settlementsData) ? settlementsData : [];
       
       console.log('Extracted balances:', balancesArray);
       console.log('Extracted settlements:', settlementsArray);
@@ -114,6 +122,12 @@ export default function GroupDashboard({ groupId, onBack }) {
   }
 
   const isAdmin = group?.members?.find(m => m.user_id === currentUser?.id)?.role === 'admin';
+  
+  // Calculate total spend from expenses
+  const totalSpend = expenses.reduce((sum, exp) => sum + (exp.total_amount || 0), 0);
+  
+  // Get current user's balance
+  const currentUserBalance = balances.find(b => b.user_id === currentUser?.id)?.balance || 0;
 
   if (loading || !group) {
     return (
@@ -156,15 +170,15 @@ export default function GroupDashboard({ groupId, onBack }) {
       <div className="group-stats">
         <div className="group-stat-card">
           <span className="stat-label">Total Group Spend</span>
-          <span className="stat-value">₹{(group.total_expenses || 0).toLocaleString('en-IN')}</span>
+          <span className="stat-value">₹{totalSpend.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="group-stat-card">
           <span className="stat-label">Your Balance</span>
-          <span className={`stat-value ${(group.your_balance || 0) > 0 ? 'text-green' : (group.your_balance || 0) < 0 ? 'text-red' : ''}`}>
-            {(group.your_balance || 0) > 0 
-              ? `You are owed ₹${Math.abs(group.your_balance).toFixed(2)}` 
-              : (group.your_balance || 0) < 0 
-                ? `You owe ₹${Math.abs(group.your_balance).toFixed(2)}`
+          <span className={`stat-value ${currentUserBalance > 0 ? 'text-green' : currentUserBalance < 0 ? 'text-red' : ''}`}>
+            {currentUserBalance > 0 
+              ? `You are owed ₹${Math.abs(currentUserBalance).toFixed(2)}` 
+              : currentUserBalance < 0 
+                ? `You owe ₹${Math.abs(currentUserBalance).toFixed(2)}`
                 : 'All settled up'}
           </span>
         </div>
@@ -206,7 +220,7 @@ export default function GroupDashboard({ groupId, onBack }) {
       <div className="tab-content">
         {activeTab === 'expenses' && <ExpensesTab expenses={expenses} />}
         {activeTab === 'balances' && <BalancesTab balances={balances} />}
-        {activeTab === 'settlements' && <SettlementsTab settlements={settlements} onRecordSettlement={handleRecordSettlement} />}
+        {activeTab === 'settlements' && <SettlementsTab settlements={settlements} currentUserId={currentUser?.id} onRecordSettlement={handleRecordSettlement} />}
         {activeTab === 'members' && <MembersTab members={group.members || []} isAdmin={isAdmin} onInvite={() => setShowInviteMember(true)} />}
       </div>
 
@@ -288,18 +302,24 @@ function BalancesTab({ balances }) {
   );
 }
 
-function SettlementsTab({ settlements, onRecordSettlement }) {
+function SettlementsTab({ settlements, currentUserId, onRecordSettlement }) {
   console.log('SettlementsTab received settlements:', settlements);
   console.log('Settlements count:', settlements?.length);
+  console.log('Current user ID:', currentUserId);
   
   if (!settlements || settlements.length === 0) {
     return <div className="empty-state"><p>No settlements needed. All balances are settled!</p></div>;
   }
 
   const handleMarkPaid = (settlement) => {
-    if (window.confirm(`Confirm that ${settlement.from_username} paid ${settlement.to_username} ₹${settlement.amount.toFixed(2)}?`)) {
+    // Check if current user is the one who should pay
+    if (settlement.from_user_id !== currentUserId) {
+      toast.error(`This payment should be made by ${settlement.from_username}, not you.`);
+      return;
+    }
+    
+    if (window.confirm(`Confirm that you are paying ${settlement.to_username} ₹${settlement.amount.toFixed(2)}?`)) {
       onRecordSettlement({
-        from_user_id: settlement.from_user_id,
         to_user_id: settlement.to_user_id,
         amount: settlement.amount
       });
@@ -311,15 +331,19 @@ function SettlementsTab({ settlements, onRecordSettlement }) {
       <p className="settlements-intro">Simplify balances with these suggested payments:</p>
       {settlements.map((settlement, idx) => {
         console.log(`Rendering settlement ${idx}:`, settlement);
+        const isCurrentUserPaying = settlement.from_user_id === currentUserId;
+        
         return (
           <div key={idx} className="settlement-card">
             <div className="settlement-text">
               <strong>{settlement.from_username}</strong> pays <strong>{settlement.to_username}</strong>
             </div>
             <div className="settlement-amount">₹{settlement.amount.toFixed(2)}</div>
-            <button className="btn btn-sm btn-primary" onClick={() => handleMarkPaid(settlement)}>
-              Mark as Paid
-            </button>
+            {isCurrentUserPaying && (
+              <button className="btn btn-sm btn-primary" onClick={() => handleMarkPaid(settlement)}>
+                Mark as Paid
+              </button>
+            )}
           </div>
         );
       })}

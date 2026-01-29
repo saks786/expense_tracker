@@ -555,9 +555,8 @@ export async function getGroupSettlementSuggestions(groupId) {
 }
 
 export async function recordGroupSettlement(groupId, settlementData) {
-  // Ensure proper format
+  // Backend automatically uses logged-in user as from_user_id
   const payload = {
-    from_user_id: settlementData.from_user_id,
     to_user_id: settlementData.to_user_id,
     amount: parseFloat(settlementData.amount),
     ...(settlementData.payment_method && { payment_method: settlementData.payment_method }),
