@@ -4,15 +4,10 @@ on:
   push:
     branches:
       - staging
-  pull_request:
-    branches:
-      - staging
-    types:
-      - closed
 
 jobs:
   deploy:
-    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    name: Deploy staging to EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +22,6 @@ jobs:
             git fetch origin
             git checkout staging
             git reset --hard origin/staging
-            docker-compose down -v
-            docker-compose up -d --build 
-            
+            docker compose down
+            docker compose up -d --build
+
