@@ -1,29 +1,49 @@
 #!/bin/bash
-set -e
+
+# =========================
+# Cron-safe environment
+# =========================
+export PATH=/usr/local/bin:/usr/bin:/bin
 
 APP_DIR="/home/ubuntu/expense_tracker"
 BRANCH="staging"
 LOG="/home/ubuntu/deploy.log"
+LOCK="/tmp/deploy.lock"
 
-cd $APP_DIR
+# =========================
+# Prevent overlapping runs
+# =========================
+exec 9>"$LOCK" || exit 1
+flock -n 9 || exit 0
 
-echo "------------------------" >> $LOG
-date >> $LOG
+echo "------------------------" >> "$LOG"
+date >> "$LOG"
 
-git fetch origin
+cd "$APP_DIR" || {
+  echo "❌ App directory not found" >> "$LOG"
+  exit 1
+}
 
-LOCAL=$(git rev-parse HEAD)
-REMOTE=$(git rev-parse origin/$BRANCH)
+# =========================
+# Git update
+# =========================
+/usr/bin/git fetch origin >> "$LOG" 2>&1
+
+LOCAL=$(/usr/bin/git rev-parse HEAD)
+REMOTE=$(/usr/bin/git rev-parse origin/$BRANCH)
 
 if [ "$LOCAL" != "$REMOTE" ]; then
-  echo "🚀 Changes detected. Deploying..." >> $LOG
+  echo "🚀 Changes detected. Deploying..." >> "$LOG"
 
-  git reset --hard origin/$BRANCH
+  /usr/bin/git reset --hard origin/$BRANCH >> "$LOG" 2>&1
 
-  docker compose down
-  docker compose up -d --build
+  # =========================
+  # Docker compose deploy
+  # =========================
+  /usr/bin/docker compose down >> "$LOG" 2>&1
+  /usr/bin/docker compose up -d --build >> "$LOG" 2>&1
 
-  echo "✅ Deployment successful" >> $LOG
+  echo "✅ Deployment successful" >> "$LOG"
 else
-  echo "ℹ️ No changes" >> $LOG
+  echo "ℹ️ No changes" >> "$LOG"
 fi
