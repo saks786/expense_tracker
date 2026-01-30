@@ -18,7 +18,7 @@ jobs:
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
-            cd /home/ubuntu/expense-tracker
+            cd /home/ubuntu/expense_tracker
             git fetch origin
             git checkout staging
             git reset --hard origin/staging
